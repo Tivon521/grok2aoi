@@ -83,7 +83,7 @@ class UploadService:
         return "".join(parts)
 
     async def _read_local_file(self, local_type: str, name: str) -> Tuple[str, str, str]:
-        base_dir = DATA_DIR / "tmp"
+        base_dir = DATA_DIR / "temp"
         if local_type == "video":
             local_dir = base_dir / "video"
             mime = "video/mp4"

@@ -64,6 +64,8 @@ class ChatCompletionResponseChoice(BaseModel):
 class ChatCompletionResponse(BaseModel):
     """聊天补全响应"""
 
+    model_config = {"exclude_none": False}
+
     id: str
     object: str = "chat.completion"
     created: int

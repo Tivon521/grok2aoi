@@ -44,12 +44,22 @@ from app.api.pages import router as pages_router
 from fastapi.staticfiles import StaticFiles
 
 # Ultimate Edition: Enhanced features
-from app.api.v1.chat_enhanced import router_enhanced as chat_enhanced_router  # noqa: E402
+from app.api.v1.chat_full import router as chat_enhanced_router  # noqa: E402
 
 # 初始化日志
 setup_logging(
     level=os.getenv("LOG_LEVEL", "INFO"), json_console=False, file_logging=True
 )
+
+# 根据环境变量决定使用哪个 chat router（避免在导入时加载配置文件）
+# 默认启用 context management
+context_enabled_env = os.getenv("CONTEXT_ENABLED", "true").lower() in ("true", "1", "yes")
+if context_enabled_env:
+    logger.info("🚀 Will use enhanced chat router with context management (from env)")
+    active_chat_router = chat_enhanced_router
+else:
+    logger.info("Will use standard chat router (from env)")
+    active_chat_router = chat_router
 
 
 @asynccontextmanager
@@ -89,6 +99,14 @@ async def lifespan(app: FastAPI):
         scheduler.start()
 
     logger.info("Application startup complete.")
+    
+    # 初始化上下文管理
+    if context_enabled:
+        from app.services.context.conversation_manager import ConversationManager
+        conv_mgr = ConversationManager()
+        await conv_mgr.init()
+        logger.info("[ChatEnhanced] Context management initialized")
+    
     yield
 
     # 关闭
@@ -126,18 +144,10 @@ def create_app() -> FastAPI:
     # 注册异常处理器
     register_exception_handlers(app)
 
-    # 注册路由
-    # Ultimate Edition: Use enhanced chat router if context.enabled=true
-    context_enabled = get_config("context.enabled", False)
-    if context_enabled:
-        logger.info("🚀 Enhanced chat with real context enabled")
-        app.include_router(
-            chat_enhanced_router, dependencies=[Depends(verify_api_key)]
-        )
-    else:
-        app.include_router(
-            chat_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
-        )
+    # 注册路由（使用根据环境变量选择的 chat router）
+    app.include_router(
+        active_chat_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
+    )
     
     app.include_router(
         image_router, prefix="/v1", dependencies=[Depends(verify_api_key)]

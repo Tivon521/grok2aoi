@@ -93,6 +93,15 @@ async function init() {
   setupBatchControls();
   await loadStats();
   await showCacheSection('image');
+
+  // 自动刷新缓存统计（每30秒）
+  setInterval(async () => {
+    try {
+      await loadStats({ silent: true });
+    } catch (e) {
+      // 静默失败
+    }
+  }, 30000);
 }
 
 function setupCacheCards() {

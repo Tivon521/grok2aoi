@@ -63,7 +63,7 @@ def extract_new_messages(
     return new_messages
 
 
-@router_enhanced.post("/v1/chat/completions")
+@router_enhanced.post("/chat/completions")
 async def chat_completions_enhanced(request_data: ChatCompletionRequest, req: Request):
     """
     增强的对话补全 API

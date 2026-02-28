@@ -210,7 +210,7 @@ async def public_imagine_ws(websocket: WebSocket):
                     model_info=model_info,
                     prompt=prompt,
                     n=6,
-                    response_format="b64_json",
+                    response_format="url",
                     size="1024x1024",
                     aspect_ratio=aspect_ratio,
                     stream=True,
@@ -231,7 +231,7 @@ async def public_imagine_ws(websocket: WebSocket):
                             await _send(
                                 {
                                     "type": "image",
-                                    "b64_json": img_b64,
+                                    "url": img_b64,
                                     "created_at": int(time.time() * 1000),
                                     "aspect_ratio": aspect_ratio,
                                     "run_id": run_id,
@@ -415,7 +415,7 @@ async def public_imagine_sse(
                         model_info=model_info,
                         prompt=prompt,
                         n=6,
-                        response_format="b64_json",
+                        response_format="url",
                         size="1024x1024",
                         aspect_ratio=ratio,
                         stream=True,
@@ -436,7 +436,7 @@ async def public_imagine_sse(
                                 sequence += 1
                                 payload = {
                                     "type": "image",
-                                    "b64_json": img_b64,
+                                    "url": img_b64,
                                     "sequence": sequence,
                                     "created_at": int(time.time() * 1000),
                                     "aspect_ratio": ratio,

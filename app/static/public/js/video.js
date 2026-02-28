@@ -356,7 +356,43 @@
     const safeUrl = url || '';
     const body = container.querySelector('.video-item-body');
     if (!body) return;
-    body.innerHTML = `\n      <video controls preload="metadata">\n        <source src="${safeUrl}" type="video/mp4">\n      </video>\n    `;
+    
+    body.innerHTML = `
+      <div class="video-loading">
+        <div class="spinner"></div>
+        <p>正在加载视频...</p>
+      </div>
+      <video controls preload="metadata" style="display:none;">
+        <source src="${safeUrl}" type="video/mp4">
+        您的浏览器不支持视频播放
+      </video>
+    `;
+    
+    const video = body.querySelector('video');
+    const loading = body.querySelector('.video-loading');
+    
+    video.addEventListener('loadedmetadata', () => {
+      if (loading) loading.style.display = 'none';
+      video.style.display = 'block';
+      log('视频加载成功');
+    });
+    
+    video.addEventListener('error', (e) => {
+      if (loading) loading.innerHTML = `
+        <div class="video-error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p>视频加载失败</p>
+          <p class="error-hint">可能原因：视频文件损坏、网络问题或格式不支持</p>
+          <a href="${safeUrl}" target="_blank" class="geist-button-outline text-xs mt-2">在新标签页打开</a>
+        </div>
+      `;
+      log(`视频加载失败: ${e.target.error ? e.target.error.message : '未知错误'}`, 'error');
+    });
+    
     updateItemLinks(container, safeUrl);
   }
 

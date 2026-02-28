@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>清除缓存</title>
+  <script>
+    // 清除所有缓存
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => caches.delete(name));
+      });
+    }
+    
+    // 清除 localStorage
+    localStorage.clear();
+    
+    // 清除 sessionStorage
+    sessionStorage.clear();
+    
+    alert('缓存已清除！请关闭此页面并刷新主页面。');
+  </script>
+</head>
+<body>
+  <h1>正在清除缓存...</h1>
+</body>
+</html>

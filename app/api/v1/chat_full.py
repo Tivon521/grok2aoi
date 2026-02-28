@@ -255,6 +255,10 @@ async def chat_completions(
                 ],
                 conversation_id=openai_conv_id,
             )
+            
+            # DEBUG: 打印 conversation_id
+            logger.info(f"[DEBUG] openai_conv_id = {openai_conv_id}")
+            logger.info(f"[DEBUG] response.conversation_id = {response.conversation_id}")
 
             # 记录统计和日志
             await request_stats.record(request.model, success=True)
@@ -273,7 +277,9 @@ async def chat_completions(
             logger.info(
                 f"[ChatAPI] 响应成功: conv_id={openai_conv_id}, duration={duration_ms}ms"
             )
-            return response
+            # 手动序列化以确保 conversation_id 被包含
+            from fastapi.responses import JSONResponse
+            return JSONResponse(content=response.model_dump(exclude_none=False))
 
     except HTTPException as e:
         # 认证错误直接抛出，不记录为请求失败

@@ -116,10 +116,26 @@
       return true;
     }
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const secureHint = window.isSecureContext || isLocalhost
-      ? '请使用最新版浏览器并允许麦克风权限'
-      : '请使用 HTTPS 或在本机 localhost 访问';
+    const isSecure = window.location.protocol === 'https:' || isLocalhost;
+    const secureHint = isSecure
+      ? '请使用最新版浏览器并允许麦克风权限。如果已拒绝，请在浏览器地址栏左侧点击锁图标，重新允许麦克风权限。'
+      : '麦克风权限需要 HTTPS 连接。请使用 HTTPS 访问或在本机使用 localhost。';
     throw new Error(`当前环境不支持麦克风权限，${secureHint}`);
+  }
+
+  async function requestMicPermission() {
+    try {
+      log('正在请求麦克风权限...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      log('麦克风权限已获取');
+      return true;
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        throw new Error('麦克风权限被拒绝。请在浏览器地址栏左侧点击锁图标，允许麦克风权限后重试。');
+      }
+      throw new Error(`无法访问麦克风: ${err.message}`);
+    }
   }
 
   async function startSession() {
@@ -190,6 +206,7 @@
       setButtons(true);
 
       log('正在开启麦克风...');
+      await requestMicPermission();
       ensureMicSupport();
       const tracks = await createLocalTracks({ audio: true, video: false });
       for (const track of tracks) {

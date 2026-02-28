@@ -5,14 +5,14 @@ import aiofiles
 from pathlib import Path
 from typing import Any, Optional, Dict
 from app.core.logger import logger
-from app.core.config import settings
+from app.core.config import get_config
 
 
 class StorageManager:
     """存储管理器 - 支持 JSON 文件存储"""
 
     def __init__(self):
-        self.storage_path = Path(settings.storage_path)
+        self.storage_path = Path(get_config("storage.path", "data"))
         self.initialized = False
 
     async def init(self):

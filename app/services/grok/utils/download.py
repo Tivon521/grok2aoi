@@ -28,7 +28,7 @@ class DownloadService:
 
     def __init__(self):
         self._session: Optional[ResettableSession] = None
-        base_dir = DATA_DIR / "tmp"
+        base_dir = DATA_DIR / "temp"
         self.image_dir = base_dir / "image"
         self.video_dir = base_dir / "video"
         self.image_dir.mkdir(parents=True, exist_ok=True)
