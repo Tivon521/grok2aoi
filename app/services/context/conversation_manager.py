@@ -253,7 +253,7 @@ class ConversationManager:
 
         if context:
             # 检查是否过期
-            if time.time() - context.updated_at > settings.conversation_ttl:
+            if time.time() - context.updated_at > get_config("context.conversation_ttl", 72000):
                 logger.info(f"[ConversationManager] 会话已过期: {openai_conv_id}")
                 await self.delete_conversation(openai_conv_id)
                 return None
@@ -335,9 +335,9 @@ class ConversationManager:
         """限制每个 token 的会话数量"""
         conv_ids = self.token_conversations.get(token, [])
 
-        if len(conv_ids) > settings.max_conversations_per_token:
+        if len(conv_ids) > get_config("context.max_conversations_per_token", 100):
             # 删除最旧的会话
-            to_delete = len(conv_ids) - settings.max_conversations_per_token
+            to_delete = len(conv_ids) - get_config("context.max_conversations_per_token", 100)
             for conv_id in conv_ids[:to_delete]:
                 context = self.conversations.get(conv_id)
                 if context:
@@ -365,7 +365,7 @@ class ConversationManager:
         expired = []
 
         for conv_id, context in self.conversations.items():
-            if now - context.updated_at > settings.conversation_ttl:
+            if now - context.updated_at > get_config("context.conversation_ttl", 72000):
                 expired.append(conv_id)
 
         for conv_id in expired:
@@ -438,7 +438,7 @@ class ConversationManager:
             / len(self.conversations)
             if self.conversations
             else 0,
-            "ttl_seconds": settings.conversation_ttl,
+            "ttl_seconds": get_config("context.conversation_ttl", 72000),
             "last_cleanup_time": self._last_cleanup_time,
             "total_cleaned": self._total_cleaned,
             "auto_cleanup_enabled": self._cleanup_task is not None,
