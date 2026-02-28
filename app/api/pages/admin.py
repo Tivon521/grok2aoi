@@ -30,3 +30,9 @@ async def admin_cache():
 @router.get("/admin/token", include_in_schema=False)
 async def admin_token():
     return FileResponse(STATIC_DIR / "admin/pages/token.html")
+
+
+@router.get("/admin/auto-register", include_in_schema=False)
+async def admin_auto_register():
+    """Ultimate Edition: Auto register page"""
+    return FileResponse(STATIC_DIR / "admin/pages/auto-register.html")

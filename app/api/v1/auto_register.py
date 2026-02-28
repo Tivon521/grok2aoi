@@ -10,7 +10,6 @@ from typing import Optional
 from app.core.auth import verify_api_key
 from app.core.config import get_config
 from app.core.logger import logger
-from app.services.register.manager import AutoRegisterManager
 
 router = APIRouter()
 
@@ -46,18 +45,27 @@ async def auto_register_tokens(data: AutoRegisterRequest):
     logger.info(f"[Auto Register] Starting: count={count}, concurrency={concurrency}")
     
     try:
+        # 动态导入管理器（避免启动时加载）
+        from app.services.register.manager import get_auto_register_manager
+        
         # 创建管理器
-        manager = AutoRegisterManager()
+        manager = get_auto_register_manager()
         
         # 执行注册
         result = await manager.register_batch(count=count, concurrency=concurrency)
         
         return {
             "success": True,
-            "message": f"Registered {result['success']} tokens successfully",
+            "message": f"Registered {result.get('success', 0)} tokens successfully",
             "data": result
         }
     
+    except ImportError as e:
+        logger.error(f"[Auto Register] Module not available: {e}")
+        return {
+            "success": False,
+            "message": "Auto register module not properly installed. Check app/services/register/"
+        }
     except Exception as e:
         logger.error(f"[Auto Register] Failed: {e}")
         return {
