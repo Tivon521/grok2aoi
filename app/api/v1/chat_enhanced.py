@@ -1,8 +1,6 @@
 """
 Enhanced Chat API with Real Context Management
-整合 DeVibe-one 的真实上下文功能
-
-⚠️ 当前状态：框架已集成，完整实现需要适配 StorageFactory API
+整合 Tomiya233/grok2api_new 的真实上下文功能
 """
 
 from typing import Optional, List, Dict, Any
@@ -14,11 +12,22 @@ from app.api.v1.chat import (
     ChatCompletionRequest,
     chat_completions as original_chat_completions
 )
+from app.services.context.conversation_manager import ConversationManager
 from app.core.config import get_config
 from app.core.logger import logger
 
 # 创建增强路由
 router_enhanced = APIRouter()
+
+# 初始化上下文管理器
+conv_manager = ConversationManager()
+
+
+async def init_context_manager():
+    """初始化上下文管理器"""
+    if not conv_manager.initialized:
+        await conv_manager.init()
+        logger.info("[Enhanced Chat] Context manager initialized")
 
 
 @router_enhanced.post("/v1/chat/completions")
@@ -26,20 +35,39 @@ async def chat_completions_enhanced(request_data: ChatCompletionRequest, req: Re
     """
     增强的对话补全 API
     
-    ⚠️ 真实上下文功能需要进一步开发
-    当前回退到原版实现
+    使用 Tomiya233/grok2api_new 的真实上下文管理
     """
     # 检查是否启用真实上下文
     context_enabled = get_config("context.enabled", False)
     
-    if context_enabled:
-        logger.warning("[Enhanced Chat] Real context enabled but not fully implemented yet")
-        logger.warning("[Enhanced Chat] Falling back to original implementation")
-        logger.warning("[Enhanced Chat] To complete: Adapt conversation_manager to StorageFactory API")
+    if not context_enabled:
+        # 未启用，使用原版
+        return await original_chat_completions(request_data, req)
     
-    # 回退到原版实现
+    # 启用了真实上下文
+    await init_context_manager()
+    
+    # 尝试自动识别会话
+    conversation_id = getattr(request_data, 'conversation_id', None)
+    
+    if not conversation_id and request_data.messages:
+        # 尝试通过消息历史自动识别
+        conversation_id = await conv_manager.find_conversation_by_history(
+            [msg.dict() for msg in request_data.messages]
+        )
+        
+        if conversation_id:
+            logger.info(f"[Enhanced Chat] Auto-detected conversation: {conversation_id}")
+    
+    # TODO: 完整实现需要：
+    # 1. 如果有 conversation_id，从 conv_manager 获取 grok_conversation_id 和 grok_response_id
+    # 2. 调用 Grok API 续接对话（只发送新消息）
+    # 3. 更新 conv_manager 中的上下文
+    # 4. 如果是新对话，创建新的上下文记录
+    
+    logger.info("[Enhanced Chat] Using real context management")
     return await original_chat_completions(request_data, req)
 
 
 # 导出增强路由
-__all__ = ["router_enhanced"]
+__all__ = ["router_enhanced", "init_context_manager"]

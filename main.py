@@ -44,7 +44,6 @@ from app.api.pages import router as pages_router
 from fastapi.staticfiles import StaticFiles
 
 # Ultimate Edition: Enhanced features
-from app.api.v1.auto_register import router as auto_register_router  # noqa: E402
 from app.api.v1.chat_enhanced import router_enhanced as chat_enhanced_router  # noqa: E402
 
 # 初始化日志
@@ -74,12 +73,10 @@ async def lifespan(app: FastAPI):
     
     # Ultimate Edition features status
     context_enabled = get_config("context.enabled", False)
-    register_enabled = get_config("register.enabled", False)
     
     logger.info("-" * 60)
     logger.info("Enhanced Features:")
     logger.info(f"  • Real Context Management: {'✅ ENABLED' if context_enabled else '❌ Disabled'}")
-    logger.info(f"  • Auto Token Registration: {'✅ ENABLED' if register_enabled else '❌ Disabled'}")
     logger.info("-" * 60)
 
     # 4. 启动 Token 刷新调度器
@@ -162,9 +159,6 @@ def create_app() -> FastAPI:
     app.include_router(admin_router, prefix="/v1/admin")
     app.include_router(public_router, prefix="/v1/public")
     app.include_router(pages_router)
-    
-    # Ultimate Edition: Auto register API
-    app.include_router(auto_register_router)
 
     return app
 

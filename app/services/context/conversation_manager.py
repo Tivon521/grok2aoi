@@ -7,7 +7,7 @@ import hashlib
 from typing import Dict, Optional, List, Any
 from dataclasses import dataclass, asdict
 from app.core.logger import logger
-from app.core.storage import StorageFactory
+from app.core.storage_manager import storage_manager
 from app.core.config import get_config
 
 
