@@ -106,6 +106,13 @@ async def refresh_tokens(data: dict):
             tokens.extend([str(t).strip() for t in data["tokens"] if str(t).strip()])
 
         if not tokens:
+            # 未传 tokens 时默认刷新全部 Token
+            for pool_name, pool in mgr.pools.items():
+                for info in pool.list():
+                    raw = info.token[4:] if info.token.startswith("sso=") else info.token
+                    tokens.append(raw)
+
+        if not tokens:
             raise HTTPException(status_code=400, detail="No tokens provided")
 
         unique_tokens = list(dict.fromkeys(tokens))
@@ -137,6 +144,13 @@ async def refresh_tokens_async(data: dict):
         tokens.append(data["token"].strip())
     if isinstance(data.get("tokens"), list):
         tokens.extend([str(t).strip() for t in data["tokens"] if str(t).strip()])
+
+    if not tokens:
+        # 未传 tokens 时默认刷新全部 Token
+        for pool_name, pool in mgr.pools.items():
+            for info in pool.list():
+                raw = info.token[4:] if info.token.startswith("sso=") else info.token
+                tokens.append(raw)
 
     if not tokens:
         raise HTTPException(status_code=400, detail="No tokens provided")

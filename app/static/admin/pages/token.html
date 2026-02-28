@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
   <link href="/static/common/css/common.css?v=1.5.0" rel="stylesheet">
-  <link href="/static/admin/css/token.css?v=1.5.0" rel="stylesheet">
+  <link href="/static/admin/css/token.css?v=1.5.4" rel="stylesheet">
   <link href="/static/common/css/toast.css" rel="stylesheet">
 </head>
 
@@ -30,6 +30,14 @@
           <p class="text-[var(--accents-4)] mt-1 text-sm">管理 Grok2API 的 Token 服务号池。</p>
         </div>
         <div class="flex items-center gap-3">
+          <button onclick="refreshAllTokens()" class="geist-button-outline gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            刷新全部
+          </button>
           <button onclick="openImportModal()" class="geist-button-outline gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -107,6 +115,15 @@
         <button class="tab-item" role="tab" aria-selected="false"
                 data-filter="expired" onclick="filterByStatus('expired')">
           失效 <span class="badge badge-red" id="tab-count-expired">0</span>
+        </button>
+        <span class="tab-sep"></span>
+        <button class="tab-item" role="tab" aria-selected="false"
+                data-filter="basic" onclick="filterByStatus('basic')">
+          Basic <span class="badge badge-blue" id="tab-count-basic">0</span>
+        </button>
+        <button class="tab-item" role="tab" aria-selected="false"
+                data-filter="super" onclick="filterByStatus('super')">
+          Super <span class="badge badge-amber" id="tab-count-super">0</span>
         </button>
         <span class="tab-sep"></span>
         <button class="tab-item" role="tab" aria-selected="false"
@@ -300,7 +317,7 @@
   <script src="/static/common/js/header.js?v=1.5.0"></script>
   <script src="/static/common/js/footer.js?v=1.5.0"></script>
   <script src="/static/common/js/toast.js"></script>
-  <script src="/static/admin/js/token.js?v=1.5.0"></script>
+  <script src="/static/admin/js/token.js?v=1.5.4"></script>
 </body>
 
 </html>

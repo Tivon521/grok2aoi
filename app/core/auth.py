@@ -82,6 +82,20 @@ async def verify_api_key(
     return auth.credentials
 
 
+async def verify_api_key_if_private(
+    auth: Optional[HTTPAuthorizationCredentials] = Security(security),
+) -> Optional[str]:
+    """
+    私有模式才校验 API Key；公开模式放开 v1 API。
+
+    - app.public_enabled = false -> 等同 verify_api_key
+    - app.public_enabled = true  -> 不校验 api_key
+    """
+    if is_public_enabled():
+        return None
+    return await verify_api_key(auth)
+
+
 async def verify_app_key(
     auth: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Optional[str]:

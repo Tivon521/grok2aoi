@@ -27,7 +27,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi import Depends  # noqa: E402
 
-from app.core.auth import verify_api_key  # noqa: E402
+from app.core.auth import verify_api_key_if_private  # noqa: E402
 from app.core.config import get_config  # noqa: E402
 from app.core.logger import logger, setup_logging  # noqa: E402
 from app.core.exceptions import register_exception_handlers  # noqa: E402
@@ -146,17 +146,17 @@ def create_app() -> FastAPI:
 
     # 注册路由（使用根据环境变量选择的 chat router）
     app.include_router(
-        active_chat_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
+        active_chat_router, prefix="/v1", dependencies=[Depends(verify_api_key_if_private)]
     )
-    
+
     app.include_router(
-        image_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
-    )
-    app.include_router(
-        models_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
+        image_router, prefix="/v1", dependencies=[Depends(verify_api_key_if_private)]
     )
     app.include_router(
-        responses_router, prefix="/v1", dependencies=[Depends(verify_api_key)]
+        models_router, prefix="/v1", dependencies=[Depends(verify_api_key_if_private)]
+    )
+    app.include_router(
+        responses_router, prefix="/v1", dependencies=[Depends(verify_api_key_if_private)]
     )
     app.include_router(files_router, prefix="/v1/files")
 

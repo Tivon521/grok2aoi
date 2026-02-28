@@ -1,12 +1,21 @@
 from typing import List
+import io
+import zipfile
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.auth import verify_app_key
 from app.core.batch import create_task, expire_task
 from app.services.grok.batch_services.assets import ListService, DeleteService
 from app.services.token.manager import get_token_manager
+from app.core.storage import DATA_DIR
 router = APIRouter()
+
+BASE_DIR = DATA_DIR / "temp"
+IMAGE_DIR = BASE_DIR / "image"
+VIDEO_DIR = BASE_DIR / "video"
 
 
 @router.get("/cache", dependencies=[Depends(verify_app_key)])
@@ -335,6 +344,69 @@ async def clear_online_async(data: dict):
         "task_id": task.id,
         "total": len(token_list),
     }
+
+
+@router.post("/cache/download", dependencies=[Depends(verify_app_key)])
+async def download_cache_files(data: dict):
+    """下载本地缓存文件：
+
+    - 1 个文件：直接下载
+    - 多个文件：打包 ZIP（ZIP_STORED）
+    """
+    cache_type = data.get("type", "image")
+    names = data.get("names") or []
+
+    if cache_type not in {"image", "video"}:
+        raise HTTPException(status_code=400, detail="Invalid cache type")
+    if not isinstance(names, list) or not names:
+        raise HTTPException(status_code=400, detail="No files selected")
+
+    cache_dir = IMAGE_DIR if cache_type == "image" else VIDEO_DIR
+    safe_names = [str(n).replace("/", "-") for n in names if str(n).strip()]
+    files = []
+    for name in safe_names:
+        p = cache_dir / name
+        if p.exists() and p.is_file():
+            files.append((name, p))
+
+    if not files:
+        raise HTTPException(status_code=404, detail="No valid files found")
+
+    if len(files) == 1:
+        name, p = files[0]
+        media_type = "application/octet-stream"
+        if cache_type == "image":
+            ext = Path(name).suffix.lower()
+            if ext in {".jpg", ".jpeg"}:
+                media_type = "image/jpeg"
+            elif ext == ".png":
+                media_type = "image/png"
+            elif ext == ".webp":
+                media_type = "image/webp"
+            elif ext == ".gif":
+                media_type = "image/gif"
+        elif cache_type == "video":
+            media_type = "video/mp4"
+
+        return FileResponse(
+            path=p,
+            media_type=media_type,
+            filename=name,
+        )
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_STORED) as zf:
+        for name, p in files:
+            zf.write(p, arcname=name)
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=cache_files.zip"
+        },
+    )
 
 
 @router.post("/cache/online/load/async", dependencies=[Depends(verify_app_key)])

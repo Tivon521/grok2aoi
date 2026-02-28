@@ -3,6 +3,7 @@ Models API 路由
 """
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 from app.services.grok.services.model import ModelService
 
@@ -18,11 +19,11 @@ async def list_models():
             "id": m.model_id,
             "object": "model",
             "created": 0,
-            "owned_by": "grok2api@chenyme",
+            "owned_by": "xai",
         }
         for m in ModelService.list()
     ]
-    return {"object": "list", "data": data}
+    return JSONResponse(content={"object": "list", "data": data})
 
 
 __all__ = ["router"]

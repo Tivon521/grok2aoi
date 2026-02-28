@@ -43,6 +43,103 @@
   const streamImageMap = new Map();
   let finalMinBytesDefault = 100000;
 
+  // === Edit mode state ===
+  let imagineMode = 'generate'; // 'generate' or 'edit'
+  let editImageFile = null; // raw File object for upload
+  const imagineModeBtns = document.querySelectorAll('.imagine-mode-btn');
+  const editImageUpload = document.getElementById('editImageUpload');
+  const editUploadArea = document.getElementById('editUploadArea');
+  const editFileInput = document.getElementById('editFileInput');
+  const editUploadPlaceholder = document.getElementById('editUploadPlaceholder');
+  const editPreviewContainer = document.getElementById('editPreviewContainer');
+  const editPreviewImg = document.getElementById('editPreviewImg');
+  const editRemoveBtn = document.getElementById('editRemoveBtn');
+
+  // === Imagine Mode Toggle ===
+  function switchImagineMode(mode) {
+    imagineMode = mode;
+    imagineModeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.imagineMode === mode));
+    if (mode === 'edit') {
+      if (editImageUpload) editImageUpload.classList.remove('hidden');
+    } else {
+      if (editImageUpload) editImageUpload.classList.add('hidden');
+    }
+  }
+
+  imagineModeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.imagineMode;
+      if (mode) switchImagineMode(mode);
+    });
+  });
+
+  // === Edit Image Upload ===
+  function handleEditFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      toast('请选择图片文件', 'error');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast('图片不能超过 50MB', 'error');
+      return;
+    }
+    editImageFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (editPreviewImg) editPreviewImg.src = e.target.result;
+      if (editUploadPlaceholder) editUploadPlaceholder.classList.add('hidden');
+      if (editPreviewContainer) editPreviewContainer.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeEditImage() {
+    editImageFile = null;
+    if (editFileInput) editFileInput.value = '';
+    if (editPreviewImg) editPreviewImg.src = '';
+    if (editPreviewContainer) editPreviewContainer.classList.add('hidden');
+    if (editUploadPlaceholder) editUploadPlaceholder.classList.remove('hidden');
+  }
+
+  if (editUploadArea) {
+    editUploadArea.addEventListener('click', (e) => {
+      if (e.target.closest('#editRemoveBtn')) return;
+      if (editFileInput) editFileInput.click();
+    });
+    editUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); editUploadArea.classList.add('dragover'); });
+    editUploadArea.addEventListener('dragleave', () => { editUploadArea.classList.remove('dragover'); });
+    editUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      editUploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) handleEditFile(file);
+    });
+  }
+  if (editFileInput) {
+    editFileInput.addEventListener('change', () => {
+      const file = editFileInput.files[0];
+      if (file) handleEditFile(file);
+    });
+  }
+  if (editRemoveBtn) {
+    editRemoveBtn.addEventListener('click', (e) => { e.stopPropagation(); removeEditImage(); });
+  }
+
+  // Clipboard paste support for edit mode image upload
+  document.addEventListener('paste', (e) => {
+    if (imagineMode !== 'edit') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) handleEditFile(file);
+        return;
+      }
+    }
+  });
+
   function toast(message, type) {
     if (typeof showToast === 'function') {
       showToast(message, type);
@@ -305,6 +402,29 @@
     document.body.removeChild(link);
   }
 
+  function downloadImageFromUrl(url, filename) {
+    fetch(url)
+      .then(r => r.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        link.click();
+      });
+  }
+
   function appendImage(base64, meta) {
     if (!waterfall) return;
     if (autoFilterToggle && autoFilterToggle.checked) {
@@ -328,8 +448,14 @@
     img.loading = 'lazy';
     img.decoding = 'async';
     img.alt = meta && meta.sequence ? `image-${meta.sequence}` : 'image';
-    const mime = inferMime(base64);
-    const dataUrl = `data:${mime};base64,${base64}`;
+    const isUrl = base64.startsWith('http://') || base64.startsWith('https://') || base64.startsWith('/');
+    let dataUrl;
+    if (isUrl) {
+      dataUrl = base64;
+    } else {
+      const mime = inferMime(base64);
+      dataUrl = `data:${mime};base64,${base64}`;
+    }
     img.src = dataUrl;
 
     const metaBar = document.createElement('div');
@@ -381,10 +507,12 @@
     if (autoDownloadToggle && autoDownloadToggle.checked) {
       const timestamp = Date.now();
       const seq = meta && meta.sequence ? meta.sequence : 'unknown';
-      const ext = mime === 'image/png' ? 'png' : 'jpg';
+      const ext = isUrl ? (base64.match(/\.(png|jpg|jpeg|webp|gif)/i)?.[1] || 'jpg') : (inferMime(base64) === 'image/png' ? 'png' : 'jpg');
       const filename = `imagine_${timestamp}_${seq}.${ext}`;
-      
-      if (useFileSystemAPI && directoryHandle) {
+
+      if (isUrl) {
+        downloadImageFromUrl(base64, filename);
+      } else if (useFileSystemAPI && directoryHandle) {
         saveToFileSystem(base64, filename).catch(() => {
           downloadImage(base64, filename);
         });
@@ -550,7 +678,7 @@
       updateCount(imageCount);
       updateLatency(data.elapsed_ms);
       updateError('');
-      appendImage(data.url || data.b64_json, data);
+      appendImage(data.b64_json, data);
     } else if (data.type === 'status') {
       if (data.status === 'running') {
         setStatus('connected', '生成中');
@@ -825,6 +953,93 @@
     setStatus('', '未连接');
   }
 
+  // === Edit Mode: call /v1/public/imagine/edit ===
+  async function startEditMode() {
+    const prompt = promptInput ? promptInput.value.trim() : '';
+    if (!prompt) {
+      toast('请输入提示词', 'error');
+      return;
+    }
+    if (!editImageFile) {
+      toast('请上传参考图片', 'error');
+      return;
+    }
+
+    const authHeader = await ensurePublicKey();
+    if (authHeader === null) {
+      toast('请先登录', 'error');
+      window.location.href = '/login';
+      return;
+    }
+
+    if (isRunning) {
+      toast('任务进行中', 'warning');
+      return;
+    }
+
+    isRunning = true;
+    setStatus('connecting', '编辑中...');
+    setButtons(true);
+
+    const startTime = Date.now();
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    formData.append('image', editImageFile);
+    formData.append('model', 'grok-imagine-1.0-edit');
+    formData.append('n', '1');
+    formData.append('response_format', 'b64_json');
+
+    try {
+      const res = await fetch('/v1/public/imagine/edit', {
+        method: 'POST',
+        headers: buildAuthHeaders(authHeader),
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const elapsed = Date.now() - startTime;
+
+      // Update credits display if returned
+      if (data.credits_info) {
+        const creditsEl = document.getElementById('credits-value');
+        if (creditsEl && typeof data.credits_info.credits === 'number') {
+          creditsEl.textContent = data.credits_info.credits;
+        }
+        if (data.credits_info.error) {
+          toast(data.credits_info.message || '积分不足', 'error');
+        }
+      }
+
+      if (data.data && data.data.length > 0) {
+        data.data.forEach((item) => {
+          const b64 = item.b64_json;
+          if (b64) {
+            imageCount += 1;
+            updateCount(imageCount);
+            updateLatency(elapsed);
+            appendImage(b64, { sequence: imageCount, elapsed_ms: elapsed, prompt: prompt });
+          }
+        });
+        setStatus('connected', '编辑完成');
+        toast('图片编辑完成', 'success');
+      } else {
+        setStatus('error', '无结果');
+        toast('未获取到编辑结果', 'error');
+      }
+    } catch (e) {
+      setStatus('error', '编辑失败');
+      toast('编辑失败: ' + e.message, 'error');
+    } finally {
+      isRunning = false;
+      setButtons(false);
+    }
+  }
+
   function clearImages() {
     if (waterfall) {
       waterfall.innerHTML = '';
@@ -843,7 +1058,13 @@
   }
 
   if (startBtn) {
-    startBtn.addEventListener('click', () => startConnection());
+    startBtn.addEventListener('click', () => {
+      if (imagineMode === 'edit') {
+        startEditMode();
+      } else {
+        startConnection();
+      }
+    });
   }
 
   if (stopBtn) {
@@ -860,7 +1081,11 @@
     promptInput.addEventListener('keydown', (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
-        startConnection();
+        if (imagineMode === 'edit') {
+          startEditMode();
+        } else {
+          startConnection();
+        }
       }
     });
   }

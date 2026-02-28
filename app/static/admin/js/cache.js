@@ -35,6 +35,7 @@ const UI_MAP = {
   selectedCount: 'selected-count',
   batchActions: 'batch-actions',
   loadBtn: 'btn-load-stats',
+  downloadBtn: 'btn-download-assets',
   deleteBtn: 'btn-delete-assets',
   localCacheLists: 'local-cache-lists',
   localImageList: 'local-image-list',
@@ -627,10 +628,18 @@ function updateDeleteButton() {
   }
 }
 
+function updateDownloadButton() {
+  const btn = ui.downloadBtn;
+  if (!btn) return;
+  btn.classList.toggle('hidden', currentSection === 'online');
+  btn.disabled = currentSection === 'online' || getActiveSelectedSet().size === 0;
+}
+
 
 function setActionButtonsState() {
   const loadBtn = ui.loadBtn;
   const deleteBtn = ui.deleteBtn;
+  const downloadBtn = ui.downloadBtn;
   const disabled = isBatchLoading || isBatchDeleting || isLocalDeleting;
   const noSelection = getActiveSelectedSet().size === 0;
   if (loadBtn) {
@@ -646,6 +655,9 @@ function setActionButtonsState() {
     } else {
       deleteBtn.disabled = disabled || noSelection;
     }
+  }
+  if (downloadBtn) {
+    downloadBtn.disabled = disabled || noSelection || currentSection === 'online';
   }
 }
 
@@ -701,6 +713,7 @@ function getActiveSelectedSet() {
 function updateToolbarForSection() {
   updateLoadButton();
   updateDeleteButton();
+  updateDownloadButton();
   updateSelectedCount();
   updateBatchProgress();
 }
@@ -861,6 +874,13 @@ function renderLocalCacheList(type, items) {
             <circle cx="12" cy="12" r="3"></circle>
           </svg>
         </button>
+        <button class="cache-icon-button" onclick="downloadLocalFile('${type}', '${item.name}')" title="下载">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
         <button class="cache-icon-button" onclick="deleteLocalFile('${type}', '${item.name}')" title="删除">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -886,6 +906,32 @@ function viewLocalFile(type, name) {
   const safeName = encodeURIComponent(name);
   const url = type === 'image' ? `/v1/files/image/${safeName}` : `/v1/files/video/${safeName}`;
   window.open(url, '_blank');
+}
+
+async function downloadLocalFile(type, name) {
+  try {
+    const res = await fetch('/v1/admin/cache/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(apiKey)
+      },
+      body: JSON.stringify({ type, names: [name] })
+    });
+    if (!res.ok) throw new Error('下载失败');
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    showToast(`下载失败: ${e.message || e}`, 'error');
+  }
 }
 
 async function deleteLocalFile(type, name) {
@@ -986,6 +1032,48 @@ function handleDeleteClick() {
     clearSelectedAccounts();
   } else {
     deleteSelectedLocal(currentSection);
+  }
+}
+
+async function handleDownloadClick() {
+  ensureUI();
+  if (currentSection === 'online') return;
+  const names = Array.from(selectedLocal[currentSection] || []);
+  if (!names.length) {
+    showToast('请先选择文件', 'info');
+    return;
+  }
+
+  try {
+    const res = await fetch('/v1/admin/cache/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(apiKey)
+      },
+      body: JSON.stringify({ type: currentSection, names })
+    });
+
+    if (!res.ok) {
+      throw new Error('下载失败');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    if (names.length === 1) {
+      a.download = names[0];
+    } else {
+      a.download = 'cache_files.zip';
+    }
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('下载已开始', 'success');
+  } catch (e) {
+    showToast(`下载失败: ${e.message || e}`, 'error');
   }
 }
 

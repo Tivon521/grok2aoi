@@ -166,6 +166,14 @@ function processTokens(data) {
   });
 }
 
+function isSuperPool(pool) {
+  return String(pool || '').toLowerCase() === 'ssosuper';
+}
+
+function poolTypeLabel(pool) {
+  return isSuperPool(pool) ? 'Super' : 'Basic';
+}
+
 function updateStats(data) {
   // Logic same as before, simplified reuse if possible, but let's re-run on flatTokens
   let totalTokens = flatTokens.length;
@@ -174,6 +182,8 @@ function updateStats(data) {
   let invalidTokens = 0;
   let nsfwTokens = 0;
   let noNsfwTokens = 0;
+  let basicTokens = 0;
+  let superTokens = 0;
   let chatQuota = 0;
   let totalCalls = 0;
 
@@ -190,6 +200,11 @@ function updateStats(data) {
       nsfwTokens++;
     } else {
       noNsfwTokens++;
+    }
+    if (isSuperPool(t.pool)) {
+      superTokens++;
+    } else {
+      basicTokens++;
     }
     totalCalls += Number(t.use_count || 0);
   });
@@ -210,6 +225,8 @@ function updateStats(data) {
     active: activeTokens,
     cooling: coolingTokens,
     expired: invalidTokens,
+    basic: basicTokens,
+    super: superTokens,
     nsfw: nsfwTokens,
     'no-nsfw': noNsfwTokens
   });
@@ -272,7 +289,8 @@ function renderTable() {
     // Type (Center)
     const tdType = document.createElement('td');
     tdType.className = 'text-center';
-    tdType.innerHTML = `<span class="badge badge-gray">${escapeHtml(item.pool)}</span>`;
+    const isSuper = isSuperPool(item.pool);
+    tdType.innerHTML = `<span class="badge ${isSuper ? 'badge-amber' : 'badge-blue'}">${isSuper ? 'Super' : 'Basic'}</span>`;
 
     // Status (Center) - 显示状态和 nsfw 标签
     const tdStatus = document.createElement('td');
@@ -788,6 +806,32 @@ async function batchUpdate() {
   startBatchRefresh();
 }
 
+async function refreshAllTokens() {
+  if (isBatchProcessing) {
+    showToast('当前有任务进行中', 'info');
+    return;
+  }
+  if (flatTokens.length === 0) {
+    showToast('暂无可刷新的 Token', 'info');
+    return;
+  }
+
+  const previous = flatTokens.map(t => t._selected);
+  flatTokens.forEach(t => {
+    t._selected = true;
+  });
+  updateSelectionState();
+
+  try {
+    await startBatchRefresh();
+  } finally {
+    flatTokens.forEach((t, i) => {
+      t._selected = Boolean(previous[i]);
+    });
+    updateSelectionState();
+  }
+}
+
 function updateBatchProgress() {
   const container = byId('batch-progress');
   const text = byId('batch-progress-text');
@@ -941,6 +985,8 @@ function getFilteredTokens() {
     if (currentFilter === 'active') return t.status === 'active';
     if (currentFilter === 'cooling') return t.status === 'cooling';
     if (currentFilter === 'expired') return t.status !== 'active' && t.status !== 'cooling';
+    if (currentFilter === 'basic') return !isSuperPool(t.pool);
+    if (currentFilter === 'super') return isSuperPool(t.pool);
     if (currentFilter === 'nsfw') return t.tags && t.tags.includes('nsfw');
     if (currentFilter === 'no-nsfw') return !t.tags || !t.tags.includes('nsfw');
     return true;
@@ -953,6 +999,8 @@ function updateTabCounts(counts) {
     active: flatTokens.filter(t => t.status === 'active').length,
     cooling: flatTokens.filter(t => t.status === 'cooling').length,
     expired: flatTokens.filter(t => t.status !== 'active' && t.status !== 'cooling').length,
+    basic: flatTokens.filter(t => !isSuperPool(t.pool)).length,
+    super: flatTokens.filter(t => isSuperPool(t.pool)).length,
     nsfw: flatTokens.filter(t => t.tags && t.tags.includes('nsfw')).length,
     'no-nsfw': flatTokens.filter(t => !t.tags || !t.tags.includes('nsfw')).length
   };

@@ -71,7 +71,10 @@ class CacheService:
         paged = items[start : start + page_size]
 
         for item in paged:
-            item["view_url"] = f"/v1/files/{media_type}/{item['name']}"
+            view_url = f"/v1/files/{media_type}/{item['name']}"
+            item["view_url"] = view_url
+            if media_type == "image":
+                item["preview_url"] = view_url
 
         return {"total": total, "page": page, "page_size": page_size, "items": paged}
 
